@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-Post it - a script for BombParty.
-
-Features :
-
-* Enter a list of 10 words to keep with you
-* Add, sort, or delete them during the game
-* Auto mode looks for the words in your list matching the prompt
-=======
 # PostitBP
 
 ENGLISH
