@@ -26,4 +26,3 @@ Mode d'emploi :
 - Cliquer sur "Sort" pour trier la liste en ordre alphabétique, sur "Clear" pour vider la liste, ou sur un mot pour l'enlever
 - Activer "Auto" pour chercher les mots valides quand c'est votre tour : ils apparaissent en vert
 - Tous les mots utilisés dans la partie seront désactivés
->>>>>>> origin/master
