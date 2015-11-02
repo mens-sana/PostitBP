@@ -1,6 +1,6 @@
 # PostitBP
 
-Installation : [Post it] (src/postit.user.js)
+Installation : [Post it] (https://github.com/mens-sana/PostitBP/raw/master/src/postit.user.js)
 
 Note : You need GreaseMonkey or TamperMonkey to install the script.
 
