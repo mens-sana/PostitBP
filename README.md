@@ -1,5 +1,9 @@
 # PostitBP
 
+Installation : [Post it] (src/postit.user.js)
+
+Note : You need GreaseMonkey or TamperMonkey to install the script.
+
 ENGLISH
 -------
 
