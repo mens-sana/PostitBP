@@ -3,24 +3,29 @@
 // @version      1.0
 // @description  Post it for BombParty
 // @downloadURL  https://github.com/mens-sana/PostitBP/raw/master/src/postit.user.js
-// @icon         http://imgur.com/eJiaVjY.png
-// @icon64       http://imgur.com/PEdC884.png
+// @icon         https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/postitIcon32.png
+// @icon64       https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/postitIcon64.png
 // @author       mens sana
 // @match        http://bombparty.sparklinlabs.com/play/*
 // @grant        GM_getResourceURL
-// @resource     btnPost http://imgur.com/p53ts8k.png
-// @resource     boutCroix http://imgur.com/CnS6PAv.png
-// @resource     postitBackground http://imgur.com/4nF73iY.png
-// @resource     btnAutoNorm http://imgur.com/puKrS9M.png
-// @resource     btnAutoSelec http://imgur.com/lNuMqrW.png
-// @resource     btnSort http://imgur.com/TiBHSAm.png
-// @resource     btnClear http://imgur.com/UklQAa3.png
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_listValues
+// @resource     btnPost https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/btnPost.png
+// @resource     boutCroix https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/boutCroix.png
+// @resource     postitBackground https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/postitBackground.png
+// @resource     btnAutoNorm https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/btnAutoNorm.png
+// @resource     btnAutoSelec https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/btnAutoSelec.png
+// @resource     btnSort https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/btnSort.png
+// @resource     btnClear https://raw.githubusercontent.com/mens-sana/PostitBP/master/img/btnClear.png
+// @noframes
 // ==/UserScript==
 
 
 ///////////////// POST IT
 
-var post = function()
+var postIt = function()
 {
     var that;
     
@@ -71,48 +76,53 @@ var post = function()
     // Tableau des accents
     this.diacriticsMap = {};
 
-    
+
     ///////////////// INITIALISATION
     
     // Initialisation
     this.init = function()
     {
+        console.log("Initialisation Post it");
         that = this;
         this.nbMots = 0;
 
         // Tableau des accents
         this.initDiacritics();
-        
-        document.body.addEventListener("dragover", this.drag_over, !1);
-        document.body.addEventListener("drop", this.drop, !1);        
 
         this.visible = false;
-        this.activAuto = false;
         this.barreLateraleVisible = true;
         this.isDragging = false;
         this.color = { norm: "#323741", valid: "#437331", util: "#6B6B6B", selec: "#242457" };
 
+        // Drag & drop
+        document.body.addEventListener("dragover", this.dragOver, !1);
+        document.body.addEventListener("drop", this.endDrag, !1);        
+
+        // gmListen
+        this.setGMListen();
+
+        // Chargement des paramètres sauvegardés
+        this.loadSavedParam();
+        
         // setListeners quand BP est chargé
         this.nextInitHnd = setInterval(this.lookUp, 1000);
-	};
-    
+    };
+        
     // Lookup pour la prochaine initialisation
-	this.lookUp = function()
-	{
-      if (channel)
-      {
-          clearInterval(that.nextInitHnd);
-          that.setListeners();
-      }
-	};
-    
+    this.lookUp = function()
+    {
+        if (channel)
+        {
+            clearInterval(that.nextInitHnd);
+            that.setListeners();
+        }
+    };
+
     // Interactions avec la partie
     this.setListeners = function()
     {
         this.ajoutPostBouton();
 
-        console.log("définition des listeners");
-        
         channel.socket.on("setActivePlayerIndex", function(e)                                             
         {
             that.lastPlayer = that.currentPlayer;
@@ -129,7 +139,7 @@ var post = function()
                           
         channel.socket.on("setState", function(a)
         { 
-            if (a === "playing")
+            if ((a === "playing") && (that.visible == true))
             {   
                 that.devalidAll();
                 
@@ -161,18 +171,68 @@ var post = function()
             
             that.addMotUtilise(mot);
         });
-        
-        channel.socket.on("chatMessage", function(e)                                                        
-        {                                                      
-            var msg = e.text;
-            var aut = e.userAuthId;
-            
-            if (msg === "/postit")
-                that.clicPostBouton();
-        });        
     };
 
 
+    //////////////////////// GM LISTEN
+    
+    // Bouton invisible gmListen pour communiquer avec les fonctions GM
+    this.setGMListen = function()
+    {
+        var gmListen = document.createElement("input");
+        gmListen.id = "gmListen";
+        gmListen.type = "button";
+        gmListen.style.width = "0px";
+        gmListen.style.height = "0px";
+        gmListen.style.visibility = "hidden";
+        this.boxControls.gmListen = gmListen;
+        var l = document.getElementsByTagName("header")[0];
+        var c = l.lastChild;
+        l.insertBefore(gmListen, c);
+    };
+
+    // Sauvegarde de la liste des mots
+    this.gmListenSaveTable = function()
+    {
+        var s = that.boxControls.gmListen;
+        var str = "saveTable";
+        var ln = that.tabMots.length;
+        
+        if (ln === 0)
+            str += " ";
+        else
+           for (var j = 0; j < that.tabMots.length; j++)
+               str += " " + that.tabMots[j];
+        
+        s.className = str;
+        s.click();        
+    };
+    
+    // Sauvegarde du bouton Auto
+    this.gmListenSaveAuto = function()
+    {
+        var s = that.boxControls.gmListen;
+        s.className = "saveAuto " + (that.activAuto ? "true" : "false");
+        s.click();
+    };
+    
+    // Chargement des paramètres sauvegardés
+    this.loadSavedParam = function()
+    {
+        if (savedParam)
+        {
+            if (savedParam.listeMots)
+            {
+                var tab = savedParam.listeMots.split(" ");
+                that.tabMots = tab;
+                that.nbMots = tab.length;
+            }
+            if (savedParam.autoCheck)
+                that.activAuto = (savedParam.autoCheck === "true");
+        }
+    };
+
+    
     //////////////////////// GESTION DES ACCENTS
 
     // Tableau des caractères accentués et spéciaux
@@ -290,7 +350,7 @@ var post = function()
     
     ///////////////// FONCTIONS DRAG
 
-    function drag_start(e)
+    this.startDrag = function(e)
     {
         if (e.target.id === "postitBackground")
         {
@@ -300,7 +360,7 @@ var post = function()
         }
     }
 
-    function drop(e)
+    this.endDrag = function(e)
     {
         if (myPost.isDragging)
         {
@@ -316,7 +376,7 @@ var post = function()
         }
     }
 
-    function drag_over(e)
+    this.dragOver = function(e)
     {
         e.preventDefault();
     }
@@ -364,22 +424,20 @@ var post = function()
             
             that.lastPlayer = "";
             that.currentPlayer = "";
-            that.tabMots = [];
-            that.nbMots = 0;
             that.visible = false;
         }
     };  
     
     // Désactive la barre à gauche
-	this.switchBarreLaterale = function()
-	{
+    this.switchBarreLaterale = function()
+    {
         if (that.barreLateraleVisible)
         {
             var e = document.getElementById("ToggleMenuButton");
             e.click();
             that.barreLateraleVisible = false;
         }
-	};
+    };
 
     
     ///////////////// COMPOSANTS DE L'INTERFACE
@@ -443,6 +501,7 @@ var post = function()
         
         this.boxControls[id] = newBtn;
         parent.appendChild(newBtn);
+        return newBtn;
     };
 
     
@@ -461,9 +520,10 @@ var post = function()
         this.postBox.style.height = "290px",
         this.postBox.style.overflow = "hidden",
         this.postBox.style.background = "rgb(20, 20, 20)";
-        this.postBox.addEventListener("dragstart", this.drag_start, !1);        
         
-        this.createNewImg("postitBackground", postImg.postitBackground, 0, 0, this.postBox, true);
+        var back = this.createNewImg("postitBackground", postImg.postitBackground, 0, 0, this.postBox, true);
+        back.draggable = "true";
+        back.addEventListener("dragstart", that.startDrag);
                 
         // Textbox transparente
         var textDiv = document.createElement("DIV");
@@ -502,7 +562,7 @@ var post = function()
         
         this.createNewButton("boutCroix", postImg.boutCroix, 182, 0, 18, 20, this.boutCroixClic, this.postBox);
         
-        this.createNewButton("btnAuto", postImg.btnAutoNorm, 0, 269, 66, 21, this.btnAutoClic, this.postBox);
+        this.createNewButton("btnAuto", (that.activAuto ? postImg.btnAutoSelec : postImg.btnAutoNorm), 0, 269, 66, 21, this.btnAutoClic, this.postBox);
         
         this.createNewButton("btnSort", postImg.btnSort, 66, 269, 67, 21, this.btnSortClic, this.postBox);
 
@@ -523,6 +583,11 @@ var post = function()
         
         this.boxControls['tableDiv'] = tableDiv;
         this.postBox.appendChild(tableDiv);
+        
+        // Chargement de la liste sauvegardée si elle existe
+        
+        if (that.tabMots && (that.tabMots.length > 0))
+            that.refreshTable();
         
         document.body.appendChild(this.postBox);
     };
@@ -578,6 +643,9 @@ var post = function()
     // Rafraichit la table
     this.refreshTable = function()
     {
+        // Envoi de la liste des mots à gmListen
+        that.gmListenSaveTable();
+        
         if (that.tableMots)
             that.emptyTable();
         
@@ -605,6 +673,8 @@ var post = function()
             that.boxControls['btnAuto'].src = postImg.btnAutoSelec;
             that.activAuto = true;
         }
+        
+        that.gmListenSaveAuto();
     };
     
     // Bouton Sort
@@ -679,8 +749,10 @@ var post = function()
     };
 
     // La souris clique sur une ligne de la table : le mot est supprimé
-    this.listMouseUp = function()
+    this.listMouseUp = function(e)
     {
+        e.preventDefault();
+        
         var n = that.selecLigne;
         
         that.tabMots.splice(n, 1);
@@ -739,15 +811,19 @@ var post = function()
         for (var i = 0; i < ln; i++)
             if (that.tabMots.length < 10)
             {
-                var mot = that.removeDiacritics(tab[i].trim().toLowerCase());
+                var mot = tab[i];
                 if (mot)
                 {
-                    that.tabMots.push(mot);
-                    that.nbMots++;
-                    if (that.dansMotsUtilises(mot))
-                        that.tabUtil.push(1);
-                    else
-                        that.tabUtil.push(0);
+                    var mot = that.removeDiacritics(mot.trim().toLowerCase());
+                    if ((/^[a-z]+$/.test(mot)) && (that.tabMots.indexOf(mot) === -1))
+                    {
+                        that.tabMots.push(mot);
+                        that.nbMots++;
+                        if (that.dansMotsUtilises(mot))
+                            that.tabUtil.push(1);
+                        else
+                            that.tabUtil.push(0);
+                    }
                 }
             }
             else
@@ -818,21 +894,51 @@ var post = function()
             var s = that.rechercheDicho(mot, that.tabMotsUtilises);
             if (s.trouv === false) that.tabMotsUtilises.splice(s.place, 0, mot);
         }
-    };    
+    };   
 };
 
 
-/////// CREATION DU SCRIPT
+///////////////// CREATION DU SCRIPT
+
+// Chargement de la liste en mémoire
+var listValues = GM_listValues();
+var sParam = 'var savedParam = { autoCheck: ' + (listValues.indexOf("autoCheck") != -1 ? '"' + GM_getValue("autoCheck") + '"' : 'null')
+                            + ', listeMots: ' + (listValues.indexOf("listeMots") != -1 ? '"' + GM_getValue("listeMots") + '"' : 'null') + '};';
 
 // Déclaration des images
 var sImg = 'var postImg = { btnPost : "' + GM_getResourceURL("btnPost") + '",' + 'boutCroix : "' + GM_getResourceURL("boutCroix") + '",' + 'btnAutoNorm : "' + GM_getResourceURL("btnAutoNorm") + '",' + 'btnAutoSelec : "' + GM_getResourceURL("btnAutoSelec") + '",' + 'btnSort : "' + GM_getResourceURL("btnSort") + '",' + 'btnClear : "' + GM_getResourceURL("btnClear") + '",' + 'postitBackground : "' + GM_getResourceURL("postitBackground") + '"}; ';
 
 // Déclaration du script
-var sPostit = "var post = " + post + "; var myPost = new post(); myPost.init();";
+var sPostit = 'var postIt = ' + postIt + '; var myPost = new postIt(); myPost.init();';
 
 // Ajout du script au document
 var te = document.createElement("script");
 te.setAttribute("type", "application/javascript");
-te.textContent = sImg + sPostit;
+te.textContent = sParam + sImg + sPostit;
 document.body.appendChild(te);
-document.body.removeChild(te);
+
+// Communication avec le script sur la page
+document.getElementById("gmListen").addEventListener("click", gmListenClick);
+function gmListenClick()
+{
+    var s = this.className;
+    var pos = s.indexOf(" ");
+    var cmd = s.substring(0, pos);
+    var param = s.substring(pos + 1, s.length);
+    
+    switch (cmd)
+    {
+        case "saveTable":
+        {
+            GM_setValue("listeMots", param);
+            break;
+        }
+        case "saveAuto":
+        {
+            GM_setValue("autoCheck", param);
+            break;
+        }
+    }
+    
+    this.className = "";
+}
